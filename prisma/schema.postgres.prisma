@@ -19,6 +19,9 @@ model Admin {
   email        String   @unique
   passwordHash String
   name         String   @default("المدير")
+  role         String   @default("admin") // owner | admin | staff
+  active       Boolean  @default(true)
+  lastLogin    DateTime?
   createdAt    DateTime @default(now())
 }
 

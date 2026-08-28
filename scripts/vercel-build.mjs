@@ -6,6 +6,16 @@
  * يُستخدم كـ buildCommand في vercel.json
  */
 import { spawnSync } from 'child_process';
+import fs from 'fs';
+
+// نضمن أن مخطط Postgres مطابق تماماً للمخطط الأساسي (يمنع أخطاء الحقول الناقصة)
+try {
+  const main = fs.readFileSync('prisma/schema.prisma', 'utf8');
+  fs.writeFileSync('prisma/schema.postgres.prisma', main.replace('provider = "sqlite"', 'provider = "postgresql"'));
+  console.log('🔄 تمت مزامنة مخطط Postgres مع المخطط الأساسي');
+} catch (e) {
+  console.log('⚠️ تعذّر مزامنة المخطط:', e.message);
+}
 
 // ترتيب الأولوية: المتغير المخصص، ثم الرابط المباشر (للهجرات)، ثم المتغيرات التلقائية
 const candidates = [

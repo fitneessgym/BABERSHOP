@@ -27,9 +27,17 @@ for (const key of candidates) {
 }
 
 if (!url) {
-  console.warn('⚠️  لم يتم العثور على رابط Postgres في متغيرات البيئة.');
-  console.warn('    أنشئ قاعدة بيانات من تبويب Storage ثم أعد النشر (Redeploy).');
-  console.warn('    أو أضف متغيراً باسم DATABASE_URL يحوي الرابط.');
+  console.log('\n' + '='.repeat(64));
+  console.log('❌ لم يتم العثور على رابط قاعدة بيانات Postgres.');
+  console.log('='.repeat(64));
+  console.log('الحل (دقيقتان):');
+  console.log('  1) من صفحة المشروع في Vercel ← تبويب Storage');
+  console.log('  2) Create Database ← Prisma Postgres (أو Neon) ← Create');
+  console.log('  3) ارجع لتبويب Deployments ← اضغط Redeploy');
+  console.log('');
+  console.log('أو يدوياً: Settings ← Environment Variables ← أضف DATABASE_URL برابط يبدأ بـ postgres://');
+  console.log('='.repeat(64) + '\n');
+  process.exit(1);
 }
 
 const env = { ...process.env, DATABASE_URL: url || process.env.DATABASE_URL || '' };

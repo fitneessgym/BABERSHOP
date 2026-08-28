@@ -1,6 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 
+// اكتشاف تلقائي لرابط قاعدة البيانات (Vercel / Neon / Prisma Postgres)
+if (!process.env.DATABASE_URL) {
+  const fallback =
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.PRISMA_POSTGRES_URL;
+  if (fallback) process.env.DATABASE_URL = fallback;
+}
+
 const prisma = new PrismaClient();
 
 function hashPassword(password) {

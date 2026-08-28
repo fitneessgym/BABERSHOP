@@ -119,7 +119,12 @@ export default function SettingsForm({ settings, locale, defaultTemplates = {}, 
   async function resetDemo() {
     if (!confirm(en ? 'Reset all data to demo content?' : 'إعادة تعيين كل البيانات للوضع التجريبي؟')) return;
     setBusy(true);
-    await fetch('/api/admin/seed', { method: 'POST' });
+    try {
+      const res = await fetch('/api/admin/seed', { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      setMsg(d.ok ? t('admin.saved') : ('⚠️ ' + (d.error || 'فشل')));
+      setTimeout(() => setMsg(''), 4000);
+    } catch (e) { setMsg('⚠️ ' + e.message); }
     setBusy(false);
     router.refresh();
   }

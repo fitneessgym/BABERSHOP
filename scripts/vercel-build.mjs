@@ -7,6 +7,7 @@
  */
 import { spawnSync } from 'child_process';
 import fs from 'fs';
+const fsSyncRef = fs;
 
 // نضمن أن مخطط Postgres مطابق تماماً للمخطط الأساسي (يمنع أخطاء الحقول الناقصة)
 try {
@@ -17,24 +18,41 @@ try {
   console.log('⚠️ تعذّر مزامنة المخطط:', e.message);
 }
 
-// ترتيب الأولوية: المتغير المخصص، ثم الرابط المباشر (للهجرات)، ثم المتغيرات التلقائية
-const candidates = [
-  'DATABASE_URL',
+const isPostgres = (v) => typeof v === 'string' && v.startsWith('postgres');
+
+// رابط الهجرات: المباشر أولاً (Supabase DIRECT_URL أو Vercel غير المجمع)
+const MIGRATE_CANDIDATES = [
+  'DIRECT_URL',
+  'MIGRATE_DATABASE_URL',
   'POSTGRES_URL_NON_POOLING',
   'POSTGRES_URL',
+  'DATABASE_URL',
   'POSTGRES_PRISMA_URL',
   'PRISMA_POSTGRES_URL',
-  'PRISMA_DATABASE_URL',
 ];
 
-let url = '';
-for (const key of candidates) {
-  if (process.env[key] && String(process.env[key]).startsWith('postgres')) {
-    url = process.env[key];
-    console.log(`🔗 استخدام قاعدة البيانات من المتغير: ${key}`);
-    break;
+// رابط التشغيل: المجمع (Pooler) للسرعة
+const RUNTIME_CANDIDATES = [
+  'DATABASE_URL',
+  'POSTGRES_PRISMA_URL',
+  'POSTGRES_URL',
+  'POSTGRES_URL_NON_POOLING',
+  'DIRECT_URL',
+];
+
+function pick(candidates) {
+  for (const key of candidates) {
+    if (isPostgres(process.env[key])) return { url: process.env[key], key };
   }
+  return null;
 }
+
+const migrate = pick(MIGRATE_CANDIDATES);
+const runtime = pick(RUNTIME_CANDIDATES) || migrate;
+const url = (migrate || runtime)?.url || '';
+
+if (migrate) console.log(`🔗 رابط الهجرات من المتغير: ${migrate.key}`);
+if (runtime) console.log(`⚡ رابط التشغيل من المتغير: ${runtime.key}`);
 
 if (!url) {
   console.log('\n' + '='.repeat(64));
@@ -50,7 +68,11 @@ if (!url) {
   process.exit(1);
 }
 
-const env = { ...process.env, DATABASE_URL: url || process.env.DATABASE_URL || '' };
+const env = {
+  ...process.env,
+  DATABASE_URL: (runtime?.url || ''),
+  DIRECT_URL: (migrate?.url || ''),
+};
 
 function run(cmd, args, label) {
   console.log(`\n▶ ${label}`);
@@ -63,8 +85,15 @@ function run(cmd, args, label) {
 
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
-run(npx, ['prisma', 'db', 'push', '--schema=prisma/schema.postgres.prisma', '--skip-generate', '--accept-data-loss'], 'تهيئة جداول قاعدة البيانات');
-run(npx, ['prisma', 'generate', '--schema=prisma/schema.postgres.prisma'], 'توليد عميل Prisma');
+// اختيار المخطط: Supabase إن وُجد، وإلا Postgres العادي
+const fsSync = fsSyncRef;
+const schemaFile = fsSync.existsSync('prisma/schema.supabase.prisma') && process.env.DIRECT_URL
+  ? 'prisma/schema.supabase.prisma'
+  : 'prisma/schema.postgres.prisma';
+console.log(`📄 المخطط المستخدم: ${schemaFile}`);
+
+run(npx, ['prisma', 'db', 'push', `--schema=${schemaFile}`, '--skip-generate', '--accept-data-loss'], 'تهيئة جداول قاعدة البيانات');
+run(npx, ['prisma', 'generate', `--schema=${schemaFile}`], 'توليد عميل Prisma');
 run(npx, ['next', 'build'], 'بناء الموقع');
 
 console.log('\n✅ اكتمل البناء بنجاح');

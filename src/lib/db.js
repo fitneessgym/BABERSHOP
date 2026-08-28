@@ -10,7 +10,8 @@ if (typeof process !== 'undefined' && !process.env.DATABASE_URL) {
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.POSTGRES_URL ||
     process.env.PRISMA_POSTGRES_URL ||
-    process.env.PRISMA_DATABASE_URL;
+    process.env.PRISMA_DATABASE_URL ||
+    process.env.DIRECT_URL;
   if (fallback) process.env.DATABASE_URL = fallback;
 }
 

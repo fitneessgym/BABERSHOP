@@ -118,7 +118,8 @@ node scripts/reset-password.mjs كلمة_السر_الجديدة admin@alsalon.c
 ## 🧱 التقنيات والبنية
 
 - **Next.js 15** (App Router) + React 19
-- **Prisma** + **SQLite** (قابلة للتحويل إلى MySQL/PostgreSQL بتغيير `provider` في `prisma/schema.prisma`)
+- **Prisma** + **SQLite** محلياً، و**PostgreSQL** عند النشر
+- قواعد بيانات مدعومة جاهزة: **Supabase** (انظر `SUPABASE.md`) · **Vercel Postgres / Neon** · **SQLite** محلياً
 - CSS مخصص بالكامل مع متغيرات CSS (`--primary`, `--bg`, ...) تُدار من قاعدة البيانات
 - مصادقة بجلسة توقيعية (HMAC) + كلمات مرور مُشفّرة بـ scrypt
 

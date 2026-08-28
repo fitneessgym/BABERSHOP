@@ -1,0 +1,35 @@
+# الاعتماديات
+node_modules/
+.pnp
+.pnp.js
+
+# البناء
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# قاعدة البيانات المحلية
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-journal
+
+# المتغيرات السرية
+.env
+.env.local
+.env*.local
+
+# السجلات
+logs/
+*.log
+npm-debug.log*
+
+# النظام
+.DS_Store
+Thumbs.db
+
+# محررات
+.vscode/
+.idea/

@@ -1,9 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx prisma db push --schema=prisma/schema.postgres.prisma --skip-generate && npx prisma generate --schema=prisma/schema.postgres.prisma && next build",
+  "buildCommand": "node scripts/vercel-build.mjs",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["iad1"],
   "crons": [
     {
       "path": "/api/cron/reminders",

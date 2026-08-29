@@ -88,7 +88,7 @@ function orString(conditions) {
 /** يطبّق شروط where على استعلام */
 function applyWhere(q, where = {}) {
   const entries = Object.entries(where).filter(([, v]) => v !== undefined);
-  if (!entries.length) return q.not('id', 'is', null); // شرط شامل للجميع
+  if (!entries.length) return q; // شرط شامل للجميع
 
   for (const [k, v] of entries) {
     if (k === 'OR') {

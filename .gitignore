@@ -1,0 +1,33 @@
+# الاعتماديات
+node_modules/
+.pnp
+.pnp.js
+
+# البناء
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# ملفات النظام المؤقتة
+*.db
+*.db-journal
+
+# المتغيرات السرية
+.env
+.env.local
+.env*.local
+
+# السجلات
+logs/
+*.log
+npm-debug.log*
+
+# النظام
+.DS_Store
+Thumbs.db
+
+# محررات
+.vscode/
+.idea/

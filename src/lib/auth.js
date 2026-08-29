@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
-import prisma from './db';
+import { one, insert } from './supabase';
 
 const SECRET = process.env.SESSION_SECRET || 'salon-secret-key-change-me';
 export const COOKIE = 'salon_session';
@@ -68,7 +68,7 @@ export async function getCurrentAdmin() {
     if (!token) return null;
     const payload = verifyToken(token);
     if (!payload) return null;
-    const admin = await prisma.admin.findUnique({ where: { id: payload.id } });
+    const admin = await one('admins', { where: { id: payload.id } });
     if (!admin || !admin.active) return null;
     return admin;
   } catch {
@@ -83,12 +83,12 @@ export async function requireAdmin() {
 export async function ensureAdmin() {
   const email = process.env.ADMIN_EMAIL || 'admin@salon.com';
   const password = process.env.ADMIN_PASSWORD || 'admin123';
-  const existing = await prisma.admin.findFirst({ where: { role: 'owner' } });
+  const existing = await one('admins', { where: { role: 'owner' } });
   if (existing) return existing;
-  const any = await prisma.admin.findFirst();
+  const any = await one('admins', {});
   if (any) return any;
-  return prisma.admin.create({
-    data: { email, passwordHash: hashPassword(password), name: 'مدير الصالون', role: 'owner' },
+  return insert('admins', {
+    email, passwordHash: hashPassword(password), name: 'مدير الصالون', role: 'owner',
   });
 }
 

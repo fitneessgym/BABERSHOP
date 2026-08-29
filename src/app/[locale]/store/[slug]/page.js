@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import prisma from '@/lib/db';
+import { one, list } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { makeT } from '@/lib/i18n';
 import Icon from '@/components/Icon';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const p = await prisma.product.findUnique({ where: { slug } });
+  const p = await one('products', { where: { slug } });
   return { title: p ? `${p.nameAr} | ${p.nameEn}` : 'Product' };
 }
 
@@ -22,13 +22,13 @@ export default async function ProductPage({ params }) {
   const en = locale === 'en';
   const s = await getSettings();
 
-  const p = await prisma.product.findUnique({ where: { slug } });
+  const p = await one('products', { where: { slug } });
   if (!p || !p.active) notFound();
 
-  const related = await prisma.product.findMany({
+  const related = await list('products', {
     where: { active: true, categoryAr: p.categoryAr, NOT: { id: p.id } },
-    take: 4,
-    orderBy: { sort: 'asc' },
+    limit: 4,
+    order: { sort: 'asc' },
   });
 
   return (

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { list, count } from '@/lib/supabase';
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -10,17 +10,17 @@ export async function GET() {
   const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayStr = fmt(today);
 
-  const [bookings, orders, totalB, totalO, todayB, pendingB, newO, services, products, customers] = await Promise.all([
-    prisma.booking.count(),
-    prisma.order.count(),
-    prisma.booking.findMany({ select: { price: true, status: true } }),
-    prisma.order.findMany({ select: { total: true, status: true } }),
-    prisma.booking.findMany({ where: { date: todayStr }, orderBy: { time: 'asc' } }),
-    prisma.booking.count({ where: { status: 'pending' } }),
-    prisma.order.count({ where: { status: 'new' } }),
-    prisma.service.count({ where: { active: true } }),
-    prisma.product.count({ where: { active: true } }),
-    prisma.booking.groupBy({ by: ['phone'], _count: { phone: true } }),
+  const [bookings, orders, totalB, totalO, todayB, pendingB, newO, services, products, phoneRows] = await Promise.all([
+    count('bookings'),
+    count('orders'),
+    list('bookings', { select: 'price, status' }),
+    list('orders', { select: 'total, status' }),
+    list('bookings', { where: { date: todayStr }, order: { time: 'asc' } }),
+    count('bookings', { where: { status: 'pending' } }),
+    count('orders', { where: { status: 'new' } }),
+    count('services', { where: { active: true } }),
+    count('products', { where: { active: true } }),
+    list('bookings', { select: 'phone' }),
   ]);
 
   const revenueBookings = totalB.filter((b) => b.status !== 'cancelled').reduce((s, b) => s + b.price, 0);
@@ -37,7 +37,7 @@ export async function GET() {
     revenueOrders,
     services,
     products,
-    customers: customers.length,
+    customers: new Set(phoneRows.map((r) => r.phone)).size,
     todayList: todayB,
   });
 }

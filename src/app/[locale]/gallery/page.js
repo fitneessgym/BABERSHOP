@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { makeT } from '@/lib/i18n';
 import Icon from '@/components/Icon';
 import SmartImage from '@/components/SmartImage';
@@ -10,7 +10,7 @@ export default async function GalleryPage({ params }) {
   const { locale } = await params;
   const t = makeT(locale);
   const en = locale === 'en';
-  const items = await prisma.galleryImage.findMany({ where: { active: true }, orderBy: { sort: 'asc' } });
+  const items = await list('gallery_images', { where: { active: true }, order: { sort: 'asc' } });
 
   return (
     <>

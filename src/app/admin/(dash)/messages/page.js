@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
 import MessagesManager from '@/components/admin/MessagesManager';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminMessages() {
   const locale = await getAdminLocale();
   const t = makeT(locale);
-  const rows = await prisma.message.findMany({ orderBy: { createdAt: 'desc' } });
+  const rows = await list('messages', { order: { createdAt: 'desc' } });
 
   return (
     <div>

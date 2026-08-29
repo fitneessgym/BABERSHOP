@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { makeT } from '@/lib/i18n';
 import Icon from '@/components/Icon';
@@ -13,8 +13,8 @@ export default async function BookingPage({ params, searchParams }) {
   const s = await getSettings();
 
   const [services, barbers] = await Promise.all([
-    prisma.service.findMany({ where: { active: true }, orderBy: { sort: 'asc' } }),
-    prisma.barber.findMany({ where: { active: true }, orderBy: { sort: 'asc' } }),
+    list('services', { where: { active: true }, order: { sort: 'asc' } }),
+    list('barbers', { where: { active: true }, order: { sort: 'asc' } }),
   ]);
 
   const svc = sp?.service ? services.find((x) => x.slug === sp.service) : null;

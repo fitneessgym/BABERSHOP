@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { one, list, count, insert, update, updateWhere, remove, removeWhere } from '@/lib/supabase';
 import { send, processDue, sendTest, waLink } from '@/lib/notify';
 
 export async function GET(req) {
@@ -18,17 +18,14 @@ export async function GET(req) {
   if (channel) where.channel = channel;
   if (type) where.type = type;
 
-  const [rows, unread, counts] = await Promise.all([
-    prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, take: limit }),
-    prisma.notification.count({ where: { read: false } }),
-    prisma.notification.groupBy({ by: ['status'], _count: { status: true } }),
+  const [rows, unread, statusRows] = await Promise.all([
+    list('notifications', { where, order: { createdAt: 'desc' }, limit }),
+    count('notifications', { where: { read: false } }),
+    list('notifications', { select: 'status' }),
   ]);
+  const counts = statusRows.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] || 0) + 1 }), {});
 
-  return NextResponse.json({
-    rows,
-    unread,
-    counts: counts.reduce((acc, c) => ({ ...acc, [c.status]: c._count.status }), {}),
-  });
+  return NextResponse.json({ rows, unread, counts });
 }
 
 export async function POST(req) {
@@ -44,7 +41,7 @@ export async function POST(req) {
       return NextResponse.json(r);
     }
     if (action === 'sendAll') {
-      const pending = await prisma.notification.findMany({ where: { status: 'pending' }, take: 200 });
+      const pending = await list('notifications', { where: { status: 'pending' }, limit: 200 });
       let ok = 0, fail = 0;
       for (const n of pending) {
         const r = await send(n.id);
@@ -57,28 +54,23 @@ export async function POST(req) {
       return NextResponse.json({ ok: true, ...r });
     }
     if (action === 'markRead') {
-      await prisma.notification.updateMany({
-        where: ids?.length ? { id: { in: ids } } : {},
-        data: { read: true },
-      });
+      await updateWhere('notifications', ids?.length ? { id: { in: ids } } : {}, { read: true });
       return NextResponse.json({ ok: true });
     }
     if (action === 'delete') {
-      await prisma.notification.delete({ where: { id } });
+      await remove('notifications', id);
       return NextResponse.json({ ok: true });
     }
     if (action === 'clear') {
-      await prisma.notification.deleteMany({});
+      await removeWhere('notifications', {});
       return NextResponse.json({ ok: true });
     }
     if (action === 'create') {
       const { type = 'custom', channel = 'whatsapp', to, title, body: text, sendNow = true, scheduledAt } = body.data || {};
-      const n = await prisma.notification.create({
-        data: {
-          type, channel, to: String(to || ''), title: String(title || ''),
-          body: String(text || ''), status: 'pending',
-          scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-        },
+      const n = await insert('notifications', {
+        type, channel, to: String(to || ''), title: String(title || ''),
+        body: String(text || ''), status: 'pending',
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
       });
       if (sendNow && !scheduledAt) return NextResponse.json(await send(n.id));
       return NextResponse.json({ ok: true, notification: n });
@@ -88,9 +80,9 @@ export async function POST(req) {
       return NextResponse.json(r);
     }
     if (action === 'link') {
-      const n = await prisma.notification.findUnique({ where: { id } });
+      const n = await one('notifications', { where: { id } });
       if (!n) return NextResponse.json({ error: 'not found' }, { status: 404 });
-      await prisma.notification.update({ where: { id }, data: { status: 'sent', sentAt: new Date(), read: true } });
+      await update('notifications', id, { status: 'sent', sentAt: new Date().toISOString(), read: true });
       return NextResponse.json({ ok: true, link: waLink(n.to, n.body) });
     }
     return NextResponse.json({ error: 'إجراء غير معروف' }, { status: 400 });

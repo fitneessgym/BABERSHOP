@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { requireAdmin, verifyPassword, hashPassword } from '@/lib/auth';
+import { update } from '@/lib/supabase';
 
 export async function POST(req) {
   const admin = await requireAdmin();
@@ -11,12 +11,9 @@ export async function POST(req) {
 
     // تحديث الاسم والبريد فقط
     if (!newPassword && !currentPassword) {
-      const row = await prisma.admin.update({
-        where: { id: admin.id },
-        data: {
-          name: String(name || admin.name),
-          email: String(email || admin.email).trim().toLowerCase(),
-        },
+      const row = await update('admins', admin.id, {
+        name: String(name || admin.name),
+        email: String(email || admin.email).trim().toLowerCase(),
       });
       return NextResponse.json({ ok: true, admin: { email: row.email, name: row.name } });
     }
@@ -32,13 +29,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'كلمتا المرور غير متطابقتين' }, { status: 400 });
     }
 
-    const row = await prisma.admin.update({
-      where: { id: admin.id },
-      data: {
-        passwordHash: hashPassword(String(newPassword)),
-        name: String(name || admin.name),
-        email: String(email || admin.email).trim().toLowerCase(),
-      },
+    const row = await update('admins', admin.id, {
+      passwordHash: hashPassword(String(newPassword)),
+      name: String(name || admin.name),
+      email: String(email || admin.email).trim().toLowerCase(),
     });
 
     return NextResponse.json({ ok: true, admin: { email: row.email, name: row.name } });

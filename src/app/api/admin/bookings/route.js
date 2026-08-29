@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { one, insert, update, remove } from '@/lib/supabase';
 import { generateCode, toMin, toTime } from '@/lib/slots';
 import { notifyBooking, scheduleReminder, notifyBookingCancel } from '@/lib/notify';
 
@@ -17,28 +17,26 @@ export async function POST(req) {
       if (!serviceId || !date || !time || !customerName) {
         return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 });
       }
-      const service = await prisma.service.findUnique({ where: { id: serviceId } });
-      const barber = barberId ? await prisma.barber.findUnique({ where: { id: barberId } }) : null;
+      const service = await one('services', { where: { id: serviceId } });
+      const barber = barberId ? await one('barbers', { where: { id: barberId } }) : null;
 
-      const booking = await prisma.booking.create({
-        data: {
-          code: generateCode('BK'),
-          customerName: String(customerName),
-          phone: String(phone || ''),
-          email: String(email || ''),
-          serviceId,
-          barberId: barberId || null,
-          barberName: barber ? barber.nameAr : '',
-          serviceName: service ? service.nameAr : '',
-          date: String(date),
-          time: String(time),
-          endTime: toTime(toMin(time) + (service?.durationMin || 30)),
-          durationMin: service?.durationMin || 30,
-          price: service?.price || 0,
-          status,
-          notes: String(notes || ''),
-          source: 'admin',
-        },
+      const booking = await insert('bookings', {
+        code: generateCode('BK'),
+        customerName: String(customerName),
+        phone: String(phone || ''),
+        email: String(email || ''),
+        serviceId,
+        barberId: barberId || null,
+        barberName: barber ? barber.nameAr : '',
+        serviceName: service ? service.nameAr : '',
+        date: String(date),
+        time: String(time),
+        endTime: toTime(toMin(time) + (service?.durationMin || 30)),
+        durationMin: service?.durationMin || 30,
+        price: service?.price || 0,
+        status,
+        notes: String(notes || ''),
+        source: 'admin',
       });
       try {
         await notifyBooking(booking, 'booking_confirm', 'ar');
@@ -51,7 +49,7 @@ export async function POST(req) {
       const data = {};
       const allowed = ['status', 'date', 'time', 'barberId', 'serviceId', 'notes', 'customerName', 'phone', 'price'];
       for (const k of allowed) if (body.data?.[k] !== undefined) data[k] = body.data[k];
-      const row = await prisma.booking.update({ where: { id }, data });
+      const row = await update('bookings', id, data);
       try {
         if (body.data?.status === 'cancelled') await notifyBooking(row, 'booking_cancel', 'ar');
         else if (body.data?.status === 'confirmed') await notifyBooking(row, 'booking_confirm', 'ar');
@@ -60,7 +58,7 @@ export async function POST(req) {
     }
 
     if (action === 'delete') {
-      await prisma.booking.delete({ where: { id } });
+      await remove('bookings', id);
       return NextResponse.json({ ok: true });
     }
 

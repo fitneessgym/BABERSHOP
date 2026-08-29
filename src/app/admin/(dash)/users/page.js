@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { requireAdmin } from '@/lib/auth';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
@@ -14,9 +14,9 @@ export default async function AdminUsers() {
   if (!me) redirect('/admin/login');
   if (me.role === 'staff') redirect('/admin');
 
-  const users = await prisma.admin.findMany({
-    orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
-    select: { id: true, email: true, name: true, role: true, active: true, lastLogin: true, createdAt: true },
+  const users = await list('admins', {
+    order: [{ role: 'asc' }, { createdAt: 'asc' }],
+    select: 'id, email, name, role, active, lastLogin, createdAt',
   });
 
   return (

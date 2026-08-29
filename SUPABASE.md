@@ -1,7 +1,12 @@
-# 🗄️ ربط المشروع بقاعدة بيانات Supabase (مجانية)
+# 🗄️ الربط مع Supabase (الطريقة الوحيدة للمشروع)
 
-Supabase = قاعدة بيانات **PostgreSQL** مجانية (500 ميجا) + لوحة تحكم سهلة لعرض البيانات.
-هذا الملف يشرح الخطوات بالتفصيل — لا تحتاج أي خبرة مسبقة.
+المشروع يتصل **حصرياً** بخدمة [Supabase](https://supabase.com) عبر مكتبة `@supabase/supabase-js` الرسمية:
+
+- **قاعدة البيانات:** PostgreSQL (15 جدولاً تُنشأ بملف SQL واحد)
+- **تخزين الصور:** Supabase Storage (حاوية عامة باسم `uploads`)
+- لا يوجد Prisma ولا SQLite ولا أي قاعدة بيانات أخرى — كل شيء في Supabase.
+
+الخطة المجانية تكفي: 500 ميجا قاعدة بيانات + 1 جيجا تخزين ملفات.
 
 ---
 
@@ -9,136 +14,111 @@ Supabase = قاعدة بيانات **PostgreSQL** مجانية (500 ميجا) + 
 
 1. ادخل [supabase.com](https://supabase.com) ← **Start your project** ← سجّل بحساب GitHub.
 2. **New project**
-   - **Name:** `al-ayham-salon`
-   - **Database Password:** اختر كلمة قوية **واحفظها فوراً** في مكان آمن (تحتاجها لاحقاً ولا تظهر مرة أخرى)
-   - **Region:** الأقرب لك (مثلاً `Central EU (Frankfurt)` أو `Middle East (Dubai)` إن وُجد)
-   - اضغط **Create new project** ← انتظر دقيقتين حتى ينتهي الإنشاء.
+   - **Name:** `al-salon`
+   - **Database Password:** اختر كلمة قوية **واحفظها فوراً** (لا تظهر مرة أخرى)
+   - **Region:** الأقرب لك (مثلاً `Central EU (Frankfurt)`)
+   - اضغط **Create new project** ← انتظر دقيقتين.
 
 ---
 
-## ٢) انسخ روابط الاتصال
+## ٢) أنشئ الجداول (خطوة واحدة)
 
-من لوحة مشروعك: **⚙️ Project Settings** (أسفل اليسار) ← **Database** ← نزل لـ **Connection string**
+1. من القائمة الجانبية للمشروع: **SQL Editor** ← **New query**
+2. افتح ملف `supabase/schema.sql` من المشروع، انسخ محتواه **كاملاً** والصقه هناك
+3. اضغط **Run** ✅
 
-ستجد طريقتين — انسخ **URI** لكلتيهما:
-
-### أ) الرابط المجمع (Pooler) — للتشغيل العادي
-- اختر تبويب **Connection pooling** (أو "Session pooler" / "Transaction pooler")
-- **Port:** `6543`
-- الشكل:
-```
-postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
-```
-← هذا هو **`DATABASE_URL`**
-
-### ب) الرابط المباشر — للهجرات (إنشاء الجداول)
-- تبويب **Connection string** / **Direct connection**
-- **Port:** `5432`
-- الشكل:
-```
-postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require
-```
-← هذا هو **`DIRECT_URL`**
-
-> 🔑 بدّل `[YOUR-PASSWORD]` بكلمة مرور قاعدة البيانات التي حفظتها.
-> ⚠️ إن كانت كلمة المرور فيها رموز مثل `@ # $ % &` يجب **ترميزها** (مثلاً `@` تصبح `%40`) — أو الأفضل: غيّر كلمة المرور لحروف وأرقام فقط من **Database Settings ← Reset password**.
+تم إنشاء كل الجداول + الفهارس + تفعيل الحماية (RLS) + حاوية تخزين الصور.
+> يمكنك إعادة تشغيله بأمان لاحقاً — لن يحذف أي بيانات موجودة.
 
 ---
 
-## ٣) أضف الروابط في Vercel
+## ٣) انسخ مفاتيح الاتصال
 
-من صفحة مشروعك في Vercel ← **Settings ← Environment Variables** أضف:
+من **⚙️ Project Settings** ← **API** انسخ:
+
+| المتغير | من أين | ملاحظة |
+|---|---|---|
+| `SUPABASE_URL` | **Project URL** | يبدأ بـ `https://xxxx.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Service role key (secret)** | ⚠️ سري جداً — للخادم فقط ولا يظهر أبداً في المتصفح |
+
+---
+
+## ٤) التشغيل محلياً على جهازك
+
+```bash
+cd BABERSHOP
+npm install
+cp .env.example .env
+```
+
+عدّل ملف `.env` واملأ القيم:
+
+```env
+SUPABASE_URL="https://xxxx.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOi..."
+ADMIN_EMAIL="admin@salon.com"
+ADMIN_PASSWORD="كلمة-سر-قوية"
+SESSION_SECRET="نص-طويل-عشوائي"
+```
+
+ثم عبّئ البيانات التجريبية وشغّل:
+
+```bash
+npm run db:seed
+npm run dev
+```
+
+افتح `http://localhost:3000` ولوحة التحكم على `/admin`
+(البريد وكلمة المرور = اللذين وضعتهما في `.env`).
+
+---
+
+## ٥) النشر على Vercel
+
+من صفحة المشروع في Vercel ← **Settings ← Environment Variables** أضف:
 
 | الاسم | القيمة |
 |---|---|
-| `DATABASE_URL` | رابط الـ Pooler (port 6543) |
-| `DIRECT_URL` | الرابط المباشر (port 5432) |
-| `ADMIN_EMAIL` | `shakarnah2004@gmail.com` |
-| `ADMIN_PASSWORD` | كلمة سرك |
-| `SESSION_SECRET` | أي نص طويل عشوائي |
-| `CRON_SECRET` | أي نص عشوائي |
+| `SUPABASE_URL` | رابط المشروع |
+| `SUPABASE_SERVICE_ROLE_KEY` | مفتاح الخدمة السري |
+| `ADMIN_EMAIL` | بريد المدير |
+| `ADMIN_PASSWORD` | كلمة سر المدير |
+| `SESSION_SECRET` | نص طويل عشوائي |
+| `CRON_SECRET` | نص عشوائي (حماية رابط التذكيرات) |
 
-ثم: **Deployments** ← **Redeploy** (أو ادفع commit جديد).
+ثم **Deployments ← Redeploy**. لا حاجة لأي إعداد إضافي — البناء بسيط: `next build`.
 
-✅ سكريبت البناء سيتعرف على `DIRECT_URL` تلقائياً ويستخدمه لإنشاء الجداول، وعلى `DATABASE_URL` للتشغيل — **لا تحتاج أي إعداد إضافي**.
-
----
-
-## ٤) عبّئ البيانات التجريبية (مرة واحدة)
-
-بعد أول نشر ناجح، على جهازك داخل مجلد المشروع:
-
-**Windows PowerShell:**
-```powershell
-cd barbershop
-npm install
-$env:DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
-$env:DIRECT_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
-npx prisma generate --schema=prisma/schema.supabase.prisma
-node prisma/seed.mjs
-```
-
-**Mac / Linux:**
-```bash
-cd barbershop
-npm install
-export DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@...pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
-export DIRECT_URL="postgresql://postgres.xxxx:PASSWORD@...pooler.supabase.com:5432/postgres?sslmode=require"
-npx prisma generate --schema=prisma/schema.supabase.prisma
-node prisma/seed.mjs
-```
-
-> 💡 **طريقة أسهل (بدون أوامر):** بعد أول نشر، سجّل الدخول للوحة التحكم ثم:
-> **الإعدادات ← زر «إعادة البيانات التجريبية»** وستُعبّأ البيانات تلقائياً ✅
+لعبء البيانات التجريبية بعد النشر: لوحة التحكم ← الإعدادات ← زر «إعادة البيانات التجريبية».
 
 ---
 
-## ٥) تأكد من نجاح كل شيء
+## 🔒 ملاحظات أمنية
 
-من لوحة Supabase ← **Table Editor** يجب أن تظهر هذه الجداول:
-```
-Admin · Service · Barber · BarberService · TimeOff
-Booking · Product · Order · OrderItem
-Coupon · GalleryImage · Review · Setting · Message · Notification
-```
-
-ثم افتح موقعك:
-- الرئيسية تعرض الخدمات والحلاقين والمنتجات ✅
-- `/admin/login` ← سجل الدخول ببريدك وكلمة سرك ✅
+- مفتاح **service_role** يتجاوز حماية الصفوف (RLS) — لهذا تُفعَّل RLS على كل الجداول
+  بلا أي سياسات عامة، فيبقى الوصول المباشر بالمفتاح العام (anon) ممنوعاً،
+  وكل القراءة والكتابة تجري عبر خادم الموقع فقط.
+- كل استعلامات التطبيق تجري على الخادم (Server Components و API Routes) —
+  المفتاح السري لا يُرسل للمتصفح أبداً.
+- كلمات مرور الإدارة مشفّرة (scrypt) داخل قاعدة البيانات.
 
 ---
 
 ## 🧰 أوامر مفيدة
 
-```bash
-# فتح Prisma Studio لعرض/تعديل البيانات بصرياً
-DATABASE_URL="..." npx prisma studio --schema=prisma/schema.supabase.prisma
-
-# إعادة إنشاء الجداول من الصفر (يمسح البيانات!)
-DATABASE_URL="..." DIRECT_URL="..." npx prisma db push --schema=prisma/schema.supabase.prisma --force-reset
-
-# فحص صحة المخطط
-npx prisma validate --schema=prisma/schema.supabase.prisma
-```
-
----
-
-## ⚠️ ملاحظات مهمة عن الخطة المجانية
-
-1. **الإيقاف المؤقت:** المشروع المجاني يُوقف تلقائياً بعد **٧ أيام بدون استخدام** — لإعادة تشغيله: افتح Supabase ← **Restore project** (مجاني ولا تُفقد البيانات).
-2. **النسخ الاحتياطي:** الخطة المجانية لا تشمل نسخاً تلقائياً — صدّر بياناتك دورياً من **Database → Backups** أو عبر `prisma studio`.
-3. **SSL إلزامي:** تأكد أن الرابط ينتهي بـ `?sslmode=require`.
-4. **Pooler + Prisma:** استخدم الرابط المجمع (6543) للتشغيل والمباشر (5432) للهجرات — هذا بالضبط ما يفعله المشروع تلقائياً.
-
----
-
-## ❓ حل المشاكل الشائعة
-
-| الخطأ | السبب والحل |
+| الأمر | الوظيفة |
 |---|---|
-| `Can't reach database server` | الرابط خطأ أو كلمة المرور غير صحيحة → أعد نسخها من Supabase |
-| `prepared statement "s0" already exists` | استخدم رابط الـ Pooler (6543) مع `?pgbouncer=true` في `DATABASE_URL` |
-| `SSL connection required` | أضف `?sslmode=require` في نهاية الرابط |
-| `password authentication failed` | كلمة المرور فيها رموز خاصة → بدّلها من **Database Settings** أو رمّزها |
-| `Environment variable not found: DATABASE_URL` | المتغير غير مضاف في Vercel → أضفه ثم **Redeploy** |
-| الجداول لا تُنشأ | تأكد أن `DIRECT_URL` مضاف (هو المستخدم للهجرات) |
+| `npm run db:seed` | تفريغ الجداول وتعبئة بيانات تجريبية كاملة |
+| `node scripts/reset-password.mjs 123456` | إعادة تعيين كلمة مرور المدير |
+| `node scripts/reset-password.mjs 123456 admin@salon.com` | إعادة التعيين مع تغيير البريد |
+
+---
+
+## 🩹 حل المشاكل الشائعة
+
+| المشكلة | الحل |
+|---|---|
+| ⚠️ اتصال Supabase غير مضبوط | `.env` ناقص — أضف `SUPABASE_URL` و `SUPABASE_SERVICE_ROLE_KEY` ثم أعد التشغيل |
+| `relation "services" does not exist` | لم تنفّذ `schema.sql` — عد إلى الخطوة ٢ |
+| `new row violates row-level security` | أنت تستخدم المفتاح العام (anon) بدل مفتاح الخدمة — راجع الخطوة ٣ |
+| فشل رفع الصور | تأكد أن حاوية `uploads` موجودة: Storage ← New bucket ← الاسم `uploads` ← Public ✓ |
+| نسيت كلمة مرور المدير | `node scripts/reset-password.mjs كلمة_جديدة` |

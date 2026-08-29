@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { list, count } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
@@ -18,17 +18,17 @@ export default async function AdminDashboard() {
   const today = fmt(new Date());
 
   const [todayList, allBookings, allOrders, services, barbers, products, msgs] = await Promise.all([
-    prisma.booking.findMany({ where: { date: today }, orderBy: { time: 'asc' } }),
-    prisma.booking.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.order.findMany({ orderBy: { createdAt: 'desc' }, take: 8, include: { items: true } }),
-    prisma.service.findMany({ orderBy: { sort: 'asc' } }),
-    prisma.barber.findMany({ orderBy: { sort: 'asc' } }),
-    prisma.product.findMany({ orderBy: { stock: 'asc' }, take: 8 }),
-    prisma.message.count({ where: { read: false } }),
+    list('bookings', { where: { date: today }, order: { time: 'asc' } }),
+    list('bookings', { order: { createdAt: 'desc' } }),
+    list('orders', { order: { createdAt: 'desc' }, limit: 8, select: '*, items:order_items(*)' }),
+    list('services', { order: { sort: 'asc' } }),
+    list('barbers', { order: { sort: 'asc' } }),
+    list('products', { order: { stock: 'asc' }, limit: 8 }),
+    count('messages', { where: { read: false } }),
   ]);
 
   const activeBookings = allBookings.filter((b) => b.status !== 'cancelled');
-  const ordersAll = await prisma.order.findMany();
+  const ordersAll = await list('orders');
   const revenueB = activeBookings.reduce((s, b) => s + b.price, 0);
   const revenueO = ordersAll.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
   const customers = new Set(allBookings.map((b) => b.phone)).size;

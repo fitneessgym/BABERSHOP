@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
 import { getSettings, parseJSON, workingHours, dayNames } from '@/lib/settings';
+import { list } from '@/lib/supabase';
 import { makeT } from '@/lib/i18n';
 import Icon, { Stars } from '@/components/Icon';
 import SmartImage from '@/components/SmartImage';
@@ -16,14 +16,14 @@ export default async function HomePage({ params }) {
   const s = await getSettings();
 
   const [services, barbers, gallery, products, reviews] = await Promise.all([
-    prisma.service.findMany({ where: { active: true }, orderBy: { sort: 'asc' }, take: 6 }),
-    prisma.barber.findMany({ where: { active: true }, orderBy: { sort: 'asc' }, take: 8 }),
-    prisma.galleryImage.findMany({ where: { active: true }, orderBy: { sort: 'asc' }, take: 6 }),
-    prisma.product.findMany({ where: { active: true, featured: true }, orderBy: { sort: 'asc' }, take: 4 }),
-    prisma.review.findMany({ where: { approved: true }, orderBy: { createdAt: 'desc' }, take: 6 }),
+    list('services', { where: { active: true }, order: { sort: 'asc' }, limit: 6 }),
+    list('barbers', { where: { active: true }, order: { sort: 'asc' }, limit: 8 }),
+    list('gallery_images', { where: { active: true }, order: { sort: 'asc' }, limit: 6 }),
+    list('products', { where: { active: true, featured: true }, order: { sort: 'asc' }, limit: 4 }),
+    list('reviews', { where: { approved: true }, order: { createdAt: 'desc' }, limit: 6 }),
   ]);
 
-  const allServices = await prisma.service.findMany({ where: { active: true }, orderBy: { sort: 'asc' } });
+  const allServices = await list('services', { where: { active: true }, order: { sort: 'asc' } });
   const hours = workingHours(s);
   const days = dayNames[locale];
   const today = new Date().getDay();

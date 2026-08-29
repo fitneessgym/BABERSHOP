@@ -1,4 +1,3 @@
-import prisma from '@/lib/db';
 import { getSettings, workingHours, dayNames } from '@/lib/settings';
 import { makeT } from '@/lib/i18n';
 import Icon from '@/components/Icon';

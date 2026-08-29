@@ -11,7 +11,7 @@ export async function POST() {
   if (!admin) return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
   try {
     const cwd = path.join(process.cwd());
-    await run('node prisma/seed.mjs', { cwd });
+    await run('node supabase/seed.mjs', { cwd });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

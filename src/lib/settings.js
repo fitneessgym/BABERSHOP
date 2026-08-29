@@ -1,8 +1,6 @@
 import { dayNames } from './i18n';
 export { dayNames };
 
-import prisma from './db';
-
 export const defaultSettings = {
   salonNameAr: 'صالون الأيهم',
   salonNameEn: 'Al-Ayham Salon',
@@ -130,9 +128,11 @@ export const DEFAULT_TEMPLATES = {
   },
 };
 
+import { list, upsert } from './supabase';
+
 export async function getSettings() {
   try {
-    const rows = await prisma.setting.findMany();
+    const rows = await list('settings');
     const s = { ...defaultSettings };
     rows.forEach((r) => { s[r.key] = r.value; });
     return s;
@@ -144,11 +144,7 @@ export async function getSettings() {
 export async function saveSettings(obj) {
   const keys = Object.keys(obj);
   for (const k of keys) {
-    await prisma.setting.upsert({
-      where: { key: k },
-      update: { value: String(obj[k] ?? '') },
-      create: { key: k, value: String(obj[k] ?? '') },
-    });
+    await upsert('settings', { key: k, value: String(obj[k] ?? '') }, 'key');
   }
   return true;
 }

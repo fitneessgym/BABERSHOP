@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
@@ -12,9 +12,9 @@ export default async function AdminAppointments() {
   const settings = await getSettings();
 
   const [bookings, services, barbers] = await Promise.all([
-    prisma.booking.findMany({ orderBy: [{ date: 'desc' }, { time: 'asc' }], take: 500 }),
-    prisma.service.findMany({ orderBy: { sort: 'asc' } }),
-    prisma.barber.findMany({ orderBy: { sort: 'asc' } }),
+    list('bookings', { order: [{ date: 'desc' }, { time: 'asc' }], limit: 500 }),
+    list('services', { order: { sort: 'asc' } }),
+    list('barbers', { order: { sort: 'asc' } }),
   ]);
 
   return (

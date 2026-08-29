@@ -64,11 +64,14 @@ GET https://your-domain.com/api/cron/reminders
 ```bash
 cd barbershop
 npm install
-npm run setup     # إنشاء قاعدة البيانات + البيانات التجريبية
-npm run dev       # http://localhost:3000
+cp .env.example .env    # ثم املأ بيانات Supabase (انظر SUPABASE.md)
+npm run db:seed         # البيانات التجريبية (بعد تشغيل schema.sql في Supabase)
+npm run dev             # http://localhost:3000
 ```
 
-> أُعيدت هيكلة قاعدة البيانات تلقائياً عند أول تشغيل. قاعدة البيانات SQLite في ملف `prisma/dev.db`.
+> 💠 المشروع يتصل **حصرياً بـ Supabase** — أنشئ مشروعاً مجانياً ونفّذ ملف `supabase/schema.sql`
+> من SQL Editor، ثم انسخ `SUPABASE_URL` و `SUPABASE_SERVICE_ROLE_KEY` في `.env`.
+> الدليل الكامل خطوة بخطوة في ملف **`SUPABASE.md`**.
 
 ### بيانات الدخول للوحة التحكم
 ```
@@ -111,15 +114,14 @@ node scripts/reset-password.mjs كلمة_السر_الجديدة admin@alsalon.c
 3. احفظ — التغييرات تظهر فوراً على الموقع
 
 كل عناصر الموقع (الخدمات، الحلاقون، المنتجات، المعرض، التقييمات) تُدار من لوحة التحكم بدون كتابة كود.
-لرفع صورة: استخدم حقل الصورة في أي نموذج ← زر "رفع" (تُحفظ في `public/uploads`).
+لرفع صورة: استخدم حقل الصورة في أي نموذج ← زر "رفع" (تُحفظ في **Supabase Storage** — حاوية `uploads` العامة، وتُحفظ محلياً في التطوير كاحتياط).
 
 ---
 
 ## 🧱 التقنيات والبنية
 
 - **Next.js 15** (App Router) + React 19
-- **Prisma** + **SQLite** محلياً، و**PostgreSQL** عند النشر
-- قواعد بيانات مدعومة جاهزة: **Supabase** (انظر `SUPABASE.md`) · **Vercel Postgres / Neon** · **SQLite** محلياً
+- **Supabase فقط**: قاعدة بيانات PostgreSQL + تخزين الصور (Supabase Storage) عبر مكتبة `@supabase/supabase-js` الرسمية — لا Prisma ولا أي قاعدة أخرى
 - CSS مخصص بالكامل مع متغيرات CSS (`--primary`, `--bg`, ...) تُدار من قاعدة البيانات
 - مصادقة بجلسة توقيعية (HMAC) + كلمات مرور مُشفّرة بـ scrypt
 
@@ -132,9 +134,9 @@ src/
       public/          الحجز، الأوقات، الطلبات، الخصومات، التواصل
       admin/           CRUD عام + إعدادات + رفع صور + إحصائيات
   components/          مكوّنات الواجهة + مكوّنات الإدارة
-  lib/                 db, auth, i18n, settings, slots
-prisma/
-  schema.prisma        نماذج قاعدة البيانات
+  lib/                 supabase (الاتصال والاستعلامات), auth, i18n, settings, slots
+supabase/
+  schema.sql           إنشاء الجداول (يُنفَّذ من SQL Editor)
   seed.mjs             البيانات التجريبية
 public/uploads/        الصور
 ```

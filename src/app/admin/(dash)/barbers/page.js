@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
 import CrudManager from '@/components/admin/CrudManager';
@@ -11,8 +11,8 @@ export default async function AdminBarbers() {
   const en = locale === 'en';
 
   const [rows, services] = await Promise.all([
-    prisma.barber.findMany({ orderBy: { sort: 'asc' }, include: { services: { include: { service: true } } } }),
-    prisma.service.findMany({ where: { active: true }, orderBy: { sort: 'asc' } }),
+    list('barbers', { order: { sort: 'asc' }, select: '*, services:barber_services(service:services(*))' }),
+    list('services', { where: { active: true }, order: { sort: 'asc' } }),
   ]);
 
   const rowsWithIds = rows.map((r) => ({ ...r, _serviceIds: r.services.map((s) => s.serviceId), serviceCount: r.services.length }));

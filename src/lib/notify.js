@@ -1,5 +1,5 @@
-import prisma from './db';
 import { getSettings, parseJSON, DEFAULT_TEMPLATES } from './settings';
+import { one, list, insert, update } from './supabase';
 
 /* ============================================================
    محرك الإشعارات
@@ -31,11 +31,9 @@ export function renderTemplate(settings, event, locale, vars = {}) {
 
 /* ---------------- إدراج إشعار في الطابور ---------------- */
 export async function queue({ type, channel, to, title, body, refId = '', scheduledAt = null, sendNow = true }) {
-  const n = await prisma.notification.create({
-    data: {
-      type, channel, to: String(to || ''), title: String(title || ''), body: String(body || ''),
-      refId, scheduledAt, status: 'pending',
-    },
+  const n = await insert('notifications', {
+    type, channel, to: String(to || ''), title: String(title || ''), body: String(body || ''),
+    refId, scheduledAt, status: 'pending',
   });
   if (sendNow && !scheduledAt) {
     try { return await send(n.id); } catch { return n; }
@@ -148,7 +146,7 @@ function normalizePhone(phone, plus = false) {
 /* ---------------- إرسال إشعار واحد ---------------- */
 export async function send(id) {
   const settings = await getSettings();
-  const n = await prisma.notification.findUnique({ where: { id } });
+  const n = await one('notifications', { where: { id } });
   if (!n) return { ok: false, error: 'not found' };
 
   let res = { ok: false, skipped: true, error: 'قناة غير مدعومة' };
@@ -158,9 +156,8 @@ export async function send(id) {
   else if (n.channel === 'inapp') res = { ok: true };
 
   const status = res.ok ? 'sent' : res.skipped ? 'skipped' : 'failed';
-  const updated = await prisma.notification.update({
-    where: { id },
-    data: { status, error: res.error || '', sentAt: res.ok ? new Date() : null },
+  const updated = await update('notifications', id, {
+    status, error: res.error || '', sentAt: res.ok ? new Date().toISOString() : null,
   });
   return { ok: res.ok, status, link: res.link, error: res.error, notification: updated };
 }
@@ -168,10 +165,10 @@ export async function send(id) {
 /* ---------------- معالجة الطابور (التذكيرات المجدولة) ---------------- */
 export async function processDue(limit = 100) {
   const now = new Date();
-  const due = await prisma.notification.findMany({
-    where: { status: 'pending', scheduledAt: { lte: now } },
-    take: limit,
-    orderBy: { scheduledAt: 'asc' },
+  const due = await list('notifications', {
+    where: { status: 'pending', scheduledAt: { lte: now.toISOString() } },
+    limit,
+    order: { scheduledAt: 'asc' },
   });
   let sent = 0, failed = 0;
   for (const n of due) {
@@ -184,7 +181,7 @@ export async function processDue(limit = 100) {
 /* ---------------- إشعارات الحجوزات ---------------- */
 export async function notifyBooking(booking, event = 'booking_confirm', locale = 'ar') {
   const settings = await getSettings();
-  const service = await prisma.service.findUnique({ where: { id: booking.serviceId } }).catch(() => null);
+  const service = await one('services', { where: { id: booking.serviceId } }).catch(() => null);
   const vars = {
     name: booking.customerName,
     salon: locale === 'en' ? settings.salonNameEn : settings.salonNameAr,
@@ -246,7 +243,7 @@ export async function scheduleReminder(booking, locale = 'ar') {
   const at = new Date(start.getTime() - hours * 3600 * 1000);
   if (isNaN(at.getTime()) || at <= new Date()) return null;
 
-  const service = await prisma.service.findUnique({ where: { id: booking.serviceId } }).catch(() => null);
+  const service = await one('services', { where: { id: booking.serviceId } }).catch(() => null);
   const vars = {
     name: booking.customerName,
     salon: locale === 'en' ? settings.salonNameEn : settings.salonNameAr,
@@ -303,8 +300,8 @@ export async function notifyOrder(order, event = 'order_new', locale = 'ar') {
 export async function sendTest({ channel, to }) {
   const settings = await getSettings();
   const text = `✅ رسالة اختبار من ${settings.salonNameAr}\nنظام الإشعارات يعمل بشكل صحيح.`;
-  const n = await prisma.notification.create({
-    data: { type: 'custom', channel, to: String(to || ''), title: 'رسالة اختبار', body: text, status: 'pending' },
+  const n = await insert('notifications', {
+    type: 'custom', channel, to: String(to || ''), title: 'رسالة اختبار', body: text, status: 'pending',
   });
   return send(n.id);
 }

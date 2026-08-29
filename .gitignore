@@ -10,9 +10,7 @@ build/
 dist/
 .turbo/
 
-# قاعدة البيانات المحلية
-prisma/dev.db
-prisma/dev.db-journal
+# ملفات النظام المؤقتة
 *.db
 *.db-journal
 

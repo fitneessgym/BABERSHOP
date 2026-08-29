@@ -1,5 +1,5 @@
-import prisma from './db';
 import { workingHours, parseJSON } from './settings';
+import { one, list } from './supabase';
 
 export const toMin = (t) => {
   const [h, m] = String(t || '0:0').split(':').map(Number);
@@ -36,15 +36,16 @@ export async function getSlots({ date, serviceId, barberId, settings }) {
   const salon = workingHours(settings)[dow];
   if (!salon || salon.off) return [];
 
-  const service = serviceId ? await prisma.service.findUnique({ where: { id: serviceId } }) : null;
+  const service = serviceId ? await one('services', { where: { id: serviceId } }) : null;
   const duration = service?.durationMin || 30;
   const step = parseInt(settings.slotDuration || '30', 10) || 30;
 
-  let barbers = await prisma.barber.findMany({
+  let barbers = await list('barbers', {
     where: { active: true },
-    include: { services: true, timeOff: { where: { date } } },
-    orderBy: { sort: 'asc' },
+    select: '*, services:barber_services(*), timeOff:time_off(*)',
+    order: { sort: 'asc' },
   });
+  barbers = barbers.map((b) => ({ ...b, timeOff: (b.timeOff || []).filter((t) => t.date === date) }));
 
   if (serviceId) {
     barbers = barbers.filter((b) => b.services.length === 0 || b.services.some((s) => s.serviceId === serviceId));
@@ -52,9 +53,9 @@ export async function getSlots({ date, serviceId, barberId, settings }) {
   if (barberId) barbers = barbers.filter((b) => b.id === barberId);
   if (!barbers.length) return [];
 
-  const bookings = await prisma.booking.findMany({
+  const bookings = await list('bookings', {
     where: { date, status: { not: 'cancelled' } },
-    select: { barberId: true, time: true, durationMin: true },
+    select: 'barberId, time, durationMin',
   });
 
   const start = toMin(salon.open);

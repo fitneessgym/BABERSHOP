@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { makeT } from '@/lib/i18n';
 import Icon, { Stars } from '@/components/Icon';
 import SmartImage from '@/components/SmartImage';
@@ -11,10 +11,10 @@ export default async function BarbersPage({ params }) {
   const t = makeT(locale);
   const en = locale === 'en';
 
-  const barbers = await prisma.barber.findMany({
+  const barbers = await list('barbers', {
     where: { active: true },
-    orderBy: { sort: 'asc' },
-    include: { services: { include: { service: true } } },
+    order: { sort: 'asc' },
+    select: '*, services:barber_services(service:services(*))',
   });
 
   return (

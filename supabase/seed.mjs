@@ -1,18 +1,39 @@
-import { PrismaClient } from '@prisma/client';
+/**
+ * ============================================================
+ *  تعبئة قاعدة البيانات بالبيانات التجريبية — Supabase
+ * ============================================================
+ *  الاستخدام (من مجلد المشروع):
+ *    1) انسخ .env.example إلى .env واملأ SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY
+ *    2) npm run db:seed
+ *
+ *  أو بتمرير المتغيرات مباشرة:
+ *    SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node supabase/seed.mjs
+ * ============================================================
+ */
+import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// اكتشاف تلقائي لرابط قاعدة البيانات (Vercel / Neon / Prisma Postgres)
-if (!process.env.DATABASE_URL) {
-  const fallback =
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.DIRECT_URL ||
-    process.env.PRISMA_POSTGRES_URL;
-  if (fallback) process.env.DATABASE_URL = fallback;
+// قراءة .env يدوياً (بدون اعتماديات إضافية)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z_0-9]+)\s*=\s*"?([^"\n]*)"?\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
 }
 
-const prisma = new PrismaClient();
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+if (!url || !key) {
+  console.error('❌ أضف SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY في ملف .env أولاً (انظر .env.example)');
+  process.exit(1);
+}
+
+const supabase = createClient(url, key);
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -20,12 +41,23 @@ function hashPassword(password) {
   return `${salt}:${hash}`;
 }
 
+async function clear(table) {
+  const { error } = await supabase.from(table).delete().neq('id', '');
+  if (error) throw new Error(`تفريغ ${table}: ${error.message}`);
+}
+
+async function add(table, data) {
+  const { data: row, error } = await supabase.from(table).insert(data).select().single();
+  if (error) throw new Error(`إدراج ${table}: ${error.message}`);
+  return row;
+}
+
 const services = [
   ['classic-haircut', 'قصة شعر كلاسيكية', 'Classic Haircut', 'قصة شعر احترافية بالمقص والماكينة مع غسيل وتصفيف نهائي', 'Professional scissor-and-clipper cut finished with a wash and style', 45, 30, 'scissors', 'قصات شعر'],
   ['haircut-beard', 'قصة شعر + لحية', 'Haircut & Beard', 'باقة متكاملة: قصة شعر عصرية مع تهذيب وتشكيل اللحية', 'Complete package: modern haircut with beard shaping and trimming', 70, 45, 'crown', 'باقات'],
   ['hot-towel-shave', 'حلاقة بالشفرة والمنشفة الساخنة', 'Hot Towel Shave', 'حلاقة تقليدية بالشفرة مع منشفة ساخنة وزيوت عطرية', 'Traditional straight-razor shave with hot towel and essential oils', 55, 30, 'razor', 'حلاقة'],
   ['beard-trim', 'تهذيب اللحية', 'Beard Trim', 'تشكيل وتهذيب اللحية بدقة مع تحديد الخطوط', 'Precise beard shaping and line-up', 35, 20, 'beard', 'لحية'],
-  ['kids-haircut', 'قصة أطفال', 'Kids Haircut', 'قصة مريحة وممتعة للأطفال حتى 12 سنة', 'A comfortable, fun cut for kids up to 12', 35, 25, 'child', 'قصات شعر'],
+  ['kids-haircut', 'قصة أطفال', 'Kids Haircut', 'قصة مريحة وممتعة للأطفال حتى 12 عاماً', 'A comfortable, fun cut for kids up to 12', 35, 25, 'child', 'قصات شعر'],
   ['hair-color', 'صبغة شعر', 'Hair Color', 'صبغة احترافية آمنة تغطي الشيب بالكامل', 'Safe professional color with full grey coverage', 120, 60, 'palette', 'تلوين'],
   ['facial-cleanse', 'تنظيف البشرة', 'Facial Cleanse', 'تنظيف عميق للبشرة مع تقشير وقناع طبيعي', 'Deep cleansing with exfoliation and a natural mask', 90, 45, 'sparkle', 'عناية'],
   ['vip-package', 'باقة VIP', 'VIP Package', 'قصة شعر + لحية + تنظيف بشرة + مساج رأس + مشروب ساخن', 'Haircut + beard + facial + head massage + hot drink', 150, 75, 'crown', 'باقات'],
@@ -58,7 +90,6 @@ const gallery = [
   ['/uploads/salon-4.jpg', 'لمسة احترافية', 'A professional touch'],
 ];
 
-
 const reviews = [
   ['أحمد الصالح', 5, 'أفضل صالون في المنطقة! خدمة رائعة وأسعار مناسبة. أبو محمد فنان حقيقي.', 'Best salon in the area! Great service and fair prices. Abu Mohammad is a true artist.', true],
   ['محمود خليل', 5, 'حجزت أونلاين ووصلت لقيت مقعدي جاهز. تجربة ممتازة وأنصح الجميع بها.', 'Booked online and my chair was ready when I arrived. Excellent experience, highly recommended.', true],
@@ -67,82 +98,74 @@ const reviews = [
 ];
 
 async function main() {
-  console.log('🌱 جارٍ تعبئة البيانات...');
+  console.log('🌱 جارٍ تعبئة قاعدة بيانات Supabase...');
 
   // المدير
   const email = process.env.ADMIN_EMAIL || 'admin@salon.com';
   const password = process.env.ADMIN_PASSWORD || 'admin123';
-  await prisma.admin.deleteMany({});
-  await prisma.admin.create({ data: { email, passwordHash: hashPassword(password), name: 'مدير الصالون' } });
+  await clear('admins');
+  await add('admins', { email, passwordHash: hashPassword(password), name: 'مدير الصالون', role: 'owner' });
   console.log(`👤 المدير: ${email} / ${password}`);
 
   // الخدمات
-  await prisma.service.deleteMany({});
+  await clear('services');
   const createdServices = [];
   for (let i = 0; i < services.length; i++) {
     const [slug, nameAr, nameEn, descAr, descEn, price, durationMin, icon, category] = services[i];
-    const s = await prisma.service.create({
-      data: { slug, nameAr, nameEn, descAr, descEn, price, durationMin, icon, category, sort: i, active: true },
-    });
-    createdServices.push(s);
+    createdServices.push(await add('services', { slug, nameAr, nameEn, descAr, descEn, price, durationMin, icon, category, sort: i, active: true }));
   }
 
   // الحلاقون
-  await prisma.barber.deleteMany({});
+  await clear('barbers');
   const createdBarbers = [];
   for (let i = 0; i < barbers.length; i++) {
     const [slug, nameAr, nameEn, roleAr, roleEn, bioAr, bioEn, photo, rating, experience] = barbers[i];
-    const b = await prisma.barber.create({
-      data: { slug, nameAr, nameEn, roleAr, roleEn, bioAr, bioEn, photo, rating, experience, sort: i, active: true },
-    });
-    createdBarbers.push(b);
+    createdBarbers.push(await add('barbers', { slug, nameAr, nameEn, roleAr, roleEn, bioAr, bioEn, photo, rating, experience, sort: i, active: true }));
   }
 
   // ربط الحلاقين بالخدمات
-  await prisma.barberService.deleteMany({});
+  await clear('barber_services');
+  const links = [];
   for (let bi = 0; bi < createdBarbers.length; bi++) {
     const start = bi % 2 === 0 ? 0 : 1;
     for (let si = start; si < createdServices.length; si += 2) {
-      await prisma.barberService.create({
-        data: { barberId: createdBarbers[bi].id, serviceId: createdServices[si].id },
-      });
+      links.push({ barberId: createdBarbers[bi].id, serviceId: createdServices[si].id });
     }
   }
+  const { error: linkError } = await supabase.from('barber_services').insert(links);
+  if (linkError) throw new Error(`ربط الخدمات: ${linkError.message}`);
 
   // المنتجات
-  await prisma.product.deleteMany({});
+  await clear('products');
   for (let i = 0; i < products.length; i++) {
     const [slug, nameAr, nameEn, descAr, descEn, price, compareAtPrice, image, categoryAr, categoryEn, brand, size, stock, featured] = products[i];
-    await prisma.product.create({
-      data: { slug, nameAr, nameEn, descAr, descEn, price, compareAtPrice, image, categoryAr, categoryEn, brand, size, stock, featured, sort: i, active: true },
-    });
+    await add('products', { slug, nameAr, nameEn, descAr, descEn, price, compareAtPrice, image, categoryAr, categoryEn, brand, size, stock, featured, sort: i, active: true });
   }
 
   // المعرض
-  await prisma.galleryImage.deleteMany({});
+  await clear('gallery_images');
   for (let i = 0; i < gallery.length; i++) {
     const [url, captionAr, captionEn] = gallery[i];
-    await prisma.galleryImage.create({ data: { url, captionAr, captionEn, sort: i, active: true } });
+    await add('gallery_images', { url, captionAr, captionEn, sort: i, active: true });
   }
 
   // التقييمات
-  await prisma.review.deleteMany({});
+  await clear('reviews');
   for (const [name, rating, commentAr, commentEn, approved] of reviews) {
-    await prisma.review.create({ data: { name, rating, commentAr, commentEn, approved } });
+    await add('reviews', { name, rating, commentAr, commentEn, approved });
   }
 
   // أكواد الخصم
-  await prisma.coupon.deleteMany({});
-  await prisma.coupon.createMany({
-    data: [
-      { code: 'WELCOME10', type: 'percent', value: 10, minTotal: 0, active: true },
-      { code: 'VIP15', type: 'percent', value: 15, minTotal: 200, active: true },
-      { code: 'SHIP20', type: 'fixed', value: 20, minTotal: 100, active: true },
-    ],
-  });
+  await clear('coupons');
+  const { error: couponError } = await supabase.from('coupons').insert([
+    { code: 'WELCOME10', type: 'percent', value: 10, minTotal: 0, active: true },
+    { code: 'VIP15', type: 'percent', value: 15, minTotal: 200, active: true },
+    { code: 'SHIP20', type: 'fixed', value: 20, minTotal: 100, active: true },
+  ]);
+  if (couponError) throw new Error(`أكواد الخصم: ${couponError.message}`);
 
   // حجوزات تجريبية
-  await prisma.booking.deleteMany({});
+  await clear('bookings');
   const today = new Date();
   const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const sampleNames = ['أحمد الصالح', 'محمود خليل', 'Fadi Nasser', 'سامي العبادي', 'يوسف منصور', 'Khaled Amr', 'طارق حسن', 'رامي عودة'];
@@ -154,61 +177,58 @@ async function main() {
     const svc = createdServices[i % createdServices.length];
     const brb = createdBarbers[i % createdBarbers.length];
     const hour = 10 + (i % 8);
-    await prisma.booking.create({
-      data: {
-        code: 'BK-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
-        customerName: sampleNames[i % sampleNames.length],
-        phone: phones[i % phones.length],
-        email: i % 2 ? 'client@example.com' : '',
-        serviceId: svc.id,
-        barberId: brb.id,
-        barberName: brb.nameAr,
-        serviceName: svc.nameAr,
-        date: fmt(d),
-        time: `${String(hour).padStart(2, '0')}:00`,
-        endTime: `${String(hour).padStart(2, '0')}:${String(svc.durationMin % 60).padStart(2, '0')}`,
-        durationMin: svc.durationMin,
-        price: svc.price,
-        status: statuses[i % statuses.length],
-        notes: i % 4 === 0 ? 'قصة قصيرة من الجوانب' : '',
-      },
+    await add('bookings', {
+      code: 'BK-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+      customerName: sampleNames[i % sampleNames.length],
+      phone: phones[i % phones.length],
+      email: i % 2 ? 'client@example.com' : '',
+      serviceId: svc.id,
+      barberId: brb.id,
+      barberName: brb.nameAr,
+      serviceName: svc.nameAr,
+      date: fmt(d),
+      time: `${String(hour).padStart(2, '0')}:00`,
+      endTime: `${String(hour).padStart(2, '0')}:${String(svc.durationMin % 60).padStart(2, '0')}`,
+      durationMin: svc.durationMin,
+      price: svc.price,
+      status: statuses[i % statuses.length],
+      notes: i % 4 === 0 ? 'قصة قصيرة من الجوانب' : '',
     });
   }
 
   // طلبات تجريبية
-  await prisma.order.deleteMany({});
-  const allProducts = await prisma.product.findMany();
+  await clear('orders');
+  const { data: allProducts, error: pError } = await supabase.from('products').select('*');
+  if (pError) throw new Error(`المنتجات: ${pError.message}`);
   for (let i = 0; i < 6; i++) {
     const p1 = allProducts[i % allProducts.length];
     const p2 = allProducts[(i + 3) % allProducts.length];
     const subtotal = p1.price * (1 + (i % 2)) + p2.price;
     const orderStatuses = ['new', 'processing', 'shipped', 'delivered', 'new', 'delivered'];
-    await prisma.order.create({
-      data: {
-        code: 'ORD-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
-        customerName: sampleNames[i % sampleNames.length],
-        phone: phones[i % phones.length],
-        email: 'client@example.com',
-        address: 'شارع الملك حسين 12',
-        city: ['رام الله', 'القدس', 'نابلس', 'الخليل'][i % 4],
-        subtotal,
-        shipping: subtotal >= 250 ? 0 : 25,
-        total: subtotal + (subtotal >= 250 ? 0 : 25),
-        status: orderStatuses[i],
-        payment: i % 2 ? 'card' : 'cash',
-        items: {
-          create: [
-            { productId: p1.id, nameAr: p1.nameAr, nameEn: p1.nameEn, price: p1.price, qty: 1 + (i % 2), image: p1.image },
-            { productId: p2.id, nameAr: p2.nameAr, nameEn: p2.nameEn, price: p2.price, qty: 1, image: p2.image },
-          ],
-        },
-      },
+    const order = await add('orders', {
+      code: 'ORD-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+      customerName: sampleNames[i % sampleNames.length],
+      phone: phones[i % phones.length],
+      email: 'client@example.com',
+      address: 'شارع الملك حسين 12',
+      city: ['رام الله', 'القدس', 'نابلس', 'الخليل'][i % 4],
+      subtotal,
+      shipping: subtotal >= 250 ? 0 : 25,
+      total: subtotal + (subtotal >= 250 ? 0 : 25),
+      status: orderStatuses[i],
+      payment: i % 2 ? 'card' : 'cash',
     });
+    const { error: itemError } = await supabase.from('order_items').insert([
+      { orderId: order.id, productId: p1.id, nameAr: p1.nameAr, nameEn: p1.nameEn, price: p1.price, qty: 1 + (i % 2), image: p1.image },
+      { orderId: order.id, productId: p2.id, nameAr: p2.nameAr, nameEn: p2.nameEn, price: p2.price, qty: 1, image: p2.image },
+    ]);
+    if (itemError) throw new Error(`عناصر الطلب: ${itemError.message}`);
   }
 
   console.log(`✅ تم: ${services.length} خدمة، ${barbers.length} حلاق، ${products.length} منتج، ${gallery.length} صورة، 14 حجز، 6 طلبات`);
 }
 
-main()
-  .catch((e) => { console.error('❌ خطأ:', e.message); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+main().catch((e) => {
+  console.error('❌ خطأ:', e.message);
+  process.exit(1);
+});

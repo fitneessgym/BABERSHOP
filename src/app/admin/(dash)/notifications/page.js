@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
@@ -12,8 +12,8 @@ export default async function AdminNotifications() {
   const settings = await getSettings();
 
   const [rows, counts] = await Promise.all([
-    prisma.notification.findMany({ orderBy: { createdAt: 'desc' }, take: 200 }),
-    prisma.notification.groupBy({ by: ['status'], _count: { status: true } }),
+    list('notifications', { order: { createdAt: 'desc' }, limit: 200 }),
+    list('notifications', { select: 'status' }),
   ]);
 
   return (
@@ -22,7 +22,7 @@ export default async function AdminNotifications() {
       <p className="muted small mb-3">{t('notify.sub')}</p>
       <NotificationsManager
         initialRows={rows}
-        initialCounts={counts.reduce((acc, c) => ({ ...acc, [c.status]: c._count.status }), {})}
+        initialCounts={counts.reduce((acc, c) => ({ ...acc, [c.status]: (acc[c.status] || 0) + 1 }), {})}
         locale={locale}
         settings={settings}
       />

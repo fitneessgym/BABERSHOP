@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { insert, update, remove, removeWhere } from '@/lib/supabase';
 import { notifyOrder } from '@/lib/notify';
 
 const FIELDS = {
@@ -18,11 +18,20 @@ const FIELDS = {
 
 const NUM = new Set(['price', 'durationMin', 'sort', 'rating', 'experience', 'stock', 'compareAtPrice', 'value', 'minTotal']);
 const BOOL = new Set(['active', 'featured', 'approved', 'read']);
+
+// خريطة النماذج إلى جداول Supabase
 const MAP = {
-  services: prisma.service, barbers: prisma.barber, products: prisma.product,
-  gallery: prisma.galleryImage, galleryimages: prisma.galleryImage,
-  coupons: prisma.coupon, reviews: prisma.review, bookings: prisma.booking,
-  orders: prisma.order, messages: prisma.message, timeoff: prisma.timeOff,
+  services: 'services',
+  barbers: 'barbers',
+  products: 'products',
+  gallery: 'gallery_images',
+  galleryimages: 'gallery_images',
+  coupons: 'coupons',
+  reviews: 'reviews',
+  bookings: 'bookings',
+  orders: 'orders',
+  messages: 'messages',
+  timeoff: 'time_off',
 };
 
 function clean(model, data) {
@@ -35,6 +44,14 @@ function clean(model, data) {
     else out[k] = data[k] === null ? '' : String(data[k]);
   }
   return out;
+}
+
+/** مزامنة خدمات الحلاق (جدول الربط barber_services) */
+async function syncBarberServices(barberId, serviceIds) {
+  await removeWhere('barber_services', { barberId });
+  for (const sid of serviceIds) {
+    await insert('barber_services', { barberId, serviceId: sid }).catch(() => {});
+  }
 }
 
 export async function POST(req, { params }) {
@@ -53,12 +70,9 @@ export async function POST(req, { params }) {
     if (action === 'create') {
       const data = clean(modelKey, body.data || {});
       if (modelKey === 'coupons' && data.code) data.code = String(data.code).toUpperCase();
-      const row = await table.create({ data });
+      const row = await insert(table, data);
       if (modelKey === 'barbers' && Array.isArray(body.serviceIds)) {
-        await prisma.barberService.deleteMany({ where: { barberId: row.id } });
-        for (const sid of body.serviceIds) {
-          await prisma.barberService.create({ data: { barberId: row.id, serviceId: sid } }).catch(() => {});
-        }
+        await syncBarberServices(row.id, body.serviceIds);
       }
       return NextResponse.json({ ok: true, row });
     }
@@ -67,22 +81,19 @@ export async function POST(req, { params }) {
       if (!id) return NextResponse.json({ error: 'معرّف مفقود' }, { status: 400 });
       const data = clean(modelKey, body.data || {});
       if (modelKey === 'coupons' && data.code) data.code = String(data.code).toUpperCase();
-      const row = await table.update({ where: { id }, data });
+      const row = await update(table, id, data);
       if (modelKey === 'orders' && body.data?.status) {
         try { await notifyOrder(row, 'order_status', 'ar'); } catch (e) { console.log('notify error:', e.message); }
       }
       if (modelKey === 'barbers' && Array.isArray(body.serviceIds)) {
-        await prisma.barberService.deleteMany({ where: { barberId: id } });
-        for (const sid of body.serviceIds) {
-          await prisma.barberService.create({ data: { barberId: id, serviceId: sid } }).catch(() => {});
-        }
+        await syncBarberServices(id, body.serviceIds);
       }
       return NextResponse.json({ ok: true, row });
     }
 
     if (action === 'delete') {
       if (!id) return NextResponse.json({ error: 'معرّف مفقود' }, { status: 400 });
-      await table.delete({ where: { id } });
+      await remove(table, id);
       return NextResponse.json({ ok: true });
     }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { requireAdmin, hashPassword, verifyPassword, can } from '@/lib/auth';
+import { one, list, count, insert, update, remove } from '@/lib/supabase';
+
+const PUBLIC_COLS = 'id, email, name, role, active, lastLogin, createdAt';
 
 export async function GET() {
   const me = await requireAdmin();
@@ -8,9 +10,9 @@ export async function GET() {
   if (!can(me, 'manageUsers') && me.role !== 'admin') {
     return NextResponse.json({ error: 'لا تملك صلاحية عرض المستخدمين' }, { status: 403 });
   }
-  const users = await prisma.admin.findMany({
-    orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
-    select: { id: true, email: true, name: true, role: true, active: true, lastLogin: true, createdAt: true },
+  const users = await list('admins', {
+    order: [{ role: 'asc' }, { createdAt: 'asc' }],
+    select: PUBLIC_COLS,
   });
   return NextResponse.json({ users, me: { id: me.id, role: me.role } });
 }
@@ -29,24 +31,21 @@ export async function POST(req) {
       const { name, email, password, role = 'staff' } = body.data || {};
       if (!email || !password) return NextResponse.json({ error: 'البريد وكلمة المرور مطلوبان' }, { status: 400 });
       if (String(password).length < 6) return NextResponse.json({ error: 'كلمة المرور 6 أحرف على الأقل' }, { status: 400 });
-      const exists = await prisma.admin.findUnique({ where: { email: String(email).trim().toLowerCase() } });
+      const exists = await one('admins', { where: { email: String(email).trim().toLowerCase() } });
       if (exists) return NextResponse.json({ error: 'هذا البريد مستخدم مسبقاً' }, { status: 400 });
       const newRole = me.role === 'owner' ? role : 'staff';
-      const user = await prisma.admin.create({
-        data: {
-          email: String(email).trim().toLowerCase(),
-          name: String(name || 'مستخدم').trim(),
-          passwordHash: hashPassword(String(password)),
-          role: newRole,
-        },
-        select: { id: true, email: true, name: true, role: true, active: true },
+      const user = await insert('admins', {
+        email: String(email).trim().toLowerCase(),
+        name: String(name || 'مستخدم').trim(),
+        passwordHash: hashPassword(String(password)),
+        role: newRole,
       });
-      return NextResponse.json({ ok: true, user });
+      return NextResponse.json({ ok: true, user: { id: user.id, email: user.email, name: user.name, role: user.role, active: user.active } });
     }
 
     // ---------- تعديل مستخدم ----------
     if (action === 'update') {
-      const target = await prisma.admin.findUnique({ where: { id } });
+      const target = await one('admins', { where: { id } });
       if (!target) return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 });
 
       const isSelf = target.id === me.id;
@@ -78,32 +77,28 @@ export async function POST(req) {
 
       // منع إزالة آخر مالك
       if (data.role && data.role !== 'owner' && target.role === 'owner') {
-        const owners = await prisma.admin.count({ where: { role: 'owner' } });
+        const owners = await count('admins', { where: { role: 'owner' } });
         if (owners <= 1) return NextResponse.json({ error: 'يجب أن يبقى حساب مالك واحد على الأقل' }, { status: 400 });
       }
       if (data.active === false && target.role === 'owner') {
         return NextResponse.json({ error: 'لا يمكن تعطيل حساب المالك' }, { status: 400 });
       }
 
-      const user = await prisma.admin.update({
-        where: { id },
-        data,
-        select: { id: true, email: true, name: true, role: true, active: true },
-      });
-      return NextResponse.json({ ok: true, user });
+      const user = await update('admins', id, data);
+      return NextResponse.json({ ok: true, user: { id: user.id, email: user.email, name: user.name, role: user.role, active: user.active } });
     }
 
     // ---------- حذف مستخدم ----------
     if (action === 'delete') {
       if (!can(me, 'deleteUser')) return NextResponse.json({ error: 'المالك فقط يمكنه حذف المستخدمين' }, { status: 403 });
       if (id === me.id) return NextResponse.json({ error: 'لا يمكنك حذف حسابك الحالي' }, { status: 400 });
-      const target = await prisma.admin.findUnique({ where: { id } });
+      const target = await one('admins', { where: { id } });
       if (!target) return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 });
       if (target.role === 'owner') {
-        const owners = await prisma.admin.count({ where: { role: 'owner' } });
+        const owners = await count('admins', { where: { role: 'owner' } });
         if (owners <= 1) return NextResponse.json({ error: 'يجب أن يبقى حساب مالك واحد على الأقل' }, { status: 400 });
       }
-      await prisma.admin.delete({ where: { id } });
+      await remove('admins', id);
       return NextResponse.json({ ok: true });
     }
 

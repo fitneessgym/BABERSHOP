@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
@@ -10,7 +10,7 @@ export default async function AdminOrders() {
   const locale = await getAdminLocale();
   const t = makeT(locale);
   const settings = await getSettings();
-  const orders = await prisma.order.findMany({ orderBy: { createdAt: 'desc' }, include: { items: true } });
+  const orders = await list('orders', { order: { createdAt: 'desc' }, select: '*, items:order_items(*)' });
 
   return (
     <div>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { getSettings } from '@/lib/settings';
+import { one, list, insert } from '@/lib/supabase';
 import { getSlots, generateCode, toMin, toTime } from '@/lib/slots';
 import { notifyBooking, scheduleReminder } from '@/lib/notify';
 
@@ -14,7 +14,7 @@ export async function POST(req) {
     }
 
     const settings = await getSettings();
-    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    const service = await one('services', { where: { id: serviceId } });
     if (!service || !service.active) return NextResponse.json({ error: 'خدمة غير متاحة' }, { status: 400 });
 
     // التحقق من توفر الوقت
@@ -25,10 +25,9 @@ export async function POST(req) {
     }
 
     const finalBarberId = barberId || slot.barbers[0];
-    const barber = finalBarberId ? await prisma.barber.findUnique({ where: { id: finalBarberId } }) : null;
+    const barber = finalBarberId ? await one('barbers', { where: { id: finalBarberId } }) : null;
 
-    const booking = await prisma.booking.create({
-      data: {
+    const booking = await insert('bookings', {
         code: generateCode('BK'),
         customerName: String(name).trim(),
         phone: String(phone).trim(),
@@ -44,7 +43,6 @@ export async function POST(req) {
         price: service.price,
         status: settings.autoConfirm === '1' ? 'confirmed' : 'pending',
         notes: String(notes || '').trim(),
-      },
     });
 
     // 🔔 إشعارات: تأكيد + تذكير مجدول + تنبيه داخلي
@@ -73,10 +71,10 @@ export async function POST(req) {
 export async function GET(req) {
   const phone = new URL(req.url).searchParams.get('phone');
   if (!phone) return NextResponse.json({ error: 'phone required' }, { status: 400 });
-  const bookings = await prisma.booking.findMany({
+  const bookings = await list('bookings', {
     where: { phone },
-    orderBy: [{ date: 'desc' }, { time: 'desc' }],
-    take: 20,
+    order: [{ date: 'desc' }, { time: 'desc' }],
+    limit: 20,
   });
   return NextResponse.json(bookings);
 }

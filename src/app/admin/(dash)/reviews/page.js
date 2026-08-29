@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getAdminLocale } from '@/lib/locale';
 import { makeT } from '@/lib/i18n';
 import CrudManager from '@/components/admin/CrudManager';
@@ -9,7 +9,7 @@ export default async function AdminReviews() {
   const locale = await getAdminLocale();
   const t = makeT(locale);
   const en = locale === 'en';
-  const rows = await prisma.review.findMany({ orderBy: { createdAt: 'desc' } });
+  const rows = await list('reviews', { order: { createdAt: 'desc' } });
 
   return (
     <div>

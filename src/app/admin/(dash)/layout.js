@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 import { requireAdmin } from '@/lib/auth';
 import { getSettings, fontOptions } from '@/lib/settings';
-import prisma from '@/lib/db';
+import { count } from '@/lib/supabase';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminTop from '@/components/admin/AdminTop';
 
@@ -18,12 +18,12 @@ export default async function AdminLayout({ children }) {
 
   const settings = await getSettings();
   const [pendingBookings, newOrders, services, products, messages, unreadNotifications] = await Promise.all([
-    prisma.booking.count({ where: { status: 'pending' } }),
-    prisma.order.count({ where: { status: 'new' } }),
-    prisma.service.count({ where: { active: true } }),
-    prisma.product.count({ where: { active: true } }),
-    prisma.message.count({ where: { read: false } }),
-    prisma.notification.count({ where: { read: false } }),
+    count('bookings', { where: { status: 'pending' } }),
+    count('orders', { where: { status: 'new' } }),
+    count('services', { where: { active: true } }),
+    count('products', { where: { active: true } }),
+    count('messages', { where: { read: false } }),
+    count('notifications', { where: { read: false } }),
   ]);
 
   const css = `:root{

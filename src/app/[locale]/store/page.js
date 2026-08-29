@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import prisma from '@/lib/db';
+import { list } from '@/lib/supabase';
 import { getSettings } from '@/lib/settings';
 import { makeT } from '@/lib/i18n';
 import Icon from '@/components/Icon';
@@ -26,8 +26,8 @@ export default async function StorePage({ params, searchParams }) {
 
   const orderBy = sort === 'asc' ? { price: 'asc' } : sort === 'desc' ? { price: 'desc' } : { sort: 'asc' };
 
-  const products = await prisma.product.findMany({ where, orderBy });
-  const all = await prisma.product.findMany({ where: { active: true } });
+  const products = await list('products', { where, order: orderBy });
+  const all = await list('products', { where: { active: true } });
   const categories = [...new Set(all.map((p) => (en ? p.categoryEn : p.categoryAr)))];
 
   return (

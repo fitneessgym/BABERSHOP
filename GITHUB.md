@@ -130,4 +130,4 @@ git push -u origin main
 (حرف `-u` هو الذي يربط الفرع — لا تنسه.)
 
 **البناء فشل على Vercel**
-→ تأكد أنك أضفت `DATABASE_URL` (من Neon/Postgres) قبل أول Deploy، ثم **Redeploy**.
+→ تأكد أنك أضفت `SUPABASE_URL` و `SUPABASE_SERVICE_ROLE_KEY` (من Supabase — انظر `SUPABASE.md`) قبل أول Deploy، ثم **Redeploy**.

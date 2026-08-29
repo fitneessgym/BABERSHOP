@@ -1,4 +1,6 @@
+import { unstable_noStore } from 'next/cache';
 import { dayNames } from './i18n';
+
 export { dayNames };
 
 export const defaultSettings = {
@@ -43,6 +45,7 @@ export const defaultSettings = {
   slotDuration: '30',
   maxAdvanceDays: '30',
   autoConfirm: '1',
+
   workingHours: JSON.stringify([
     { day: 0, open: '10:00', close: '22:00', off: false },
     { day: 1, open: '10:00', close: '22:00', off: false },
@@ -61,10 +64,34 @@ export const defaultSettings = {
   orderWhatsapp: '1',
 
   features: JSON.stringify([
-    { icon: 'star', titleAr: 'جودة عالية', titleEn: 'Top Quality', textAr: 'أفضل المنتجات والأدوات العالمية', textEn: 'Best global tools and products' },
-    { icon: 'clock', titleAr: 'سرعة ودقة', titleEn: 'Fast & Precise', textAr: 'احجز بضغطة زر بدون انتظار', textEn: 'Book in one tap, no waiting' },
-    { icon: 'users', titleAr: 'حلاقون محترفون', titleEn: 'Expert Barbers', textAr: 'فريق بخبرة تتجاوز 15 عاماً', textEn: 'Team with 15+ years of experience' },
-    { icon: 'heart', titleAr: 'تجربة مريحة', titleEn: 'Comfort First', textAr: 'أجواء رجالية أصيلة وخدمة راقية', textEn: 'Authentic atmosphere and premium service' },
+    {
+      icon: 'star',
+      titleAr: 'جودة عالية',
+      titleEn: 'Top Quality',
+      textAr: 'أفضل المنتجات والأدوات العالمية',
+      textEn: 'Best global tools and products'
+    },
+    {
+      icon: 'clock',
+      titleAr: 'سرعة ودقة',
+      titleEn: 'Fast & Precise',
+      textAr: 'احجز بضغطة زر بدون انتظار',
+      textEn: 'Book in one tap, no waiting'
+    },
+    {
+      icon: 'users',
+      titleAr: 'حلاقون محترفون',
+      titleEn: 'Expert Barbers',
+      textAr: 'فريق بخبرة تتجاوز 15 عاماً',
+      textEn: 'Team with 15+ years of experience'
+    },
+    {
+      icon: 'heart',
+      titleAr: 'تجربة مريحة',
+      titleEn: 'Comfort First',
+      textAr: 'أجواء رجالية أصيلة وخدمة راقية',
+      textEn: 'Authentic atmosphere and premium service'
+    },
   ]),
 
   // ---------- الإشعارات ----------
@@ -90,10 +117,26 @@ export const defaultSettings = {
   notifyAdminPhone: '',
 
   stats: JSON.stringify([
-    { value: '15+', labelAr: 'سنة خبرة', labelEn: 'Years Experience' },
-    { value: '12K+', labelAr: 'عميل سعيد', labelEn: 'Happy Clients' },
-    { value: '8', labelAr: 'حلاق محترف', labelEn: 'Expert Barbers' },
-    { value: '20+', labelAr: 'خدمة مميزة', labelEn: 'Premium Services' },
+    {
+      value: '15+',
+      labelAr: 'سنة خبرة',
+      labelEn: 'Years Experience'
+    },
+    {
+      value: '12K+',
+      labelAr: 'عميل سعيد',
+      labelEn: 'Happy Clients'
+    },
+    {
+      value: '8',
+      labelAr: 'حلاق محترف',
+      labelEn: 'Expert Barbers'
+    },
+    {
+      value: '20+',
+      labelAr: 'خدمة مميزة',
+      labelEn: 'Premium Services'
+    },
   ]),
 };
 
@@ -102,26 +145,32 @@ export const DEFAULT_TEMPLATES = {
     ar: 'مرحباً {name} 👋\nتم تأكيد حجزك في {salon}\n\n✂️ الخدمة: {service}\n👨‍🔧 الحلاق: {barber}\n📅 التاريخ: {date}\n⏰ الساعة: {time}\n🎫 رقم الحجز: {code}\n💰 السعر: {price} {currency}\n\nننتظرك! لأي تعديل اتصل بنا: {phone}',
     en: 'Hello {name} 👋\nYour booking at {salon} is confirmed\n\n✂️ Service: {service}\n👨‍🔧 Barber: {barber}\n📅 Date: {date}\n⏰ Time: {time}\n🎫 Code: {code}\n💰 Price: {price} {currency}\n\nSee you soon! To change: {phone}',
   },
+
   booking_reminder: {
     ar: 'تذكير لطيف ⏰\nعزيزي {name}، نذكّرك بموعدك في {salon}\n📅 {date} — ⏰ {time}\n✂️ {service} مع {barber}\n🎫 رقم الحجز: {code}\nللتعديل أو الإلغاء اتصل بنا: {phone}',
     en: 'Friendly reminder ⏰\nHi {name}, your appointment at {salon}\n📅 {date} — ⏰ {time}\n✂️ {service} with {barber}\n🎫 Code: {code}\nTo reschedule call: {phone}',
   },
+
   booking_cancel: {
     ar: 'عزيزي {name}، تم إلغاء حجزك رقم {code} في {salon}.\nنتطلع لخدمتك في وقت آخر ❤️\n{phone}',
     en: 'Dear {name}, your booking {code} at {salon} has been cancelled.\nWe hope to see you another time ❤️\n{phone}',
   },
+
   order_new: {
     ar: 'شكراً لطلبك من {salon} 🛍️\n🎫 رقم الطلب: {code}\n💰 الإجمالي: {total} {currency}\n📦 الحالة: جديد\nسنتصل بك قريباً لتأكيد التوصيل. شكراً لثقتك ❤️',
     en: 'Thanks for your order from {salon} 🛍️\n🎫 Order: {code}\n💰 Total: {total} {currency}\n📦 Status: new\nWe will call you soon to confirm delivery ❤️',
   },
+
   order_status: {
     ar: 'تحديث بخصوص طلبك {code} من {salon}:\n📦 الحالة الآن: {status}\nشكراً لتسوقك معنا ❤️',
     en: 'Update on your order {code} from {salon}:\n📦 Status: {status}\nThank you for shopping with us ❤️',
   },
+
   admin_booking: {
     ar: 'حجز جديد: {name} — {service} — {date} {time} — {phone}',
     en: 'New booking: {name} — {service} — {date} {time} — {phone}',
   },
+
   admin_order: {
     ar: 'طلب جديد: {code} — {name} — {total} {currency}',
     en: 'New order: {code} — {name} — {total} {currency}',
@@ -131,10 +180,17 @@ export const DEFAULT_TEMPLATES = {
 import { list, upsert } from './supabase';
 
 export async function getSettings() {
+  // منع Next.js من تخزين الإعدادات مؤقتاً
+  unstable_noStore();
+
   try {
     const rows = await list('settings');
     const s = { ...defaultSettings };
-    rows.forEach((r) => { s[r.key] = r.value; });
+
+    rows.forEach((r) => {
+      s[r.key] = r.value;
+    });
+
     return s;
   } catch (e) {
     return { ...defaultSettings };
@@ -143,19 +199,36 @@ export async function getSettings() {
 
 export async function saveSettings(obj) {
   const keys = Object.keys(obj);
+
   for (const k of keys) {
-    await upsert('settings', { key: k, value: String(obj[k] ?? '') }, 'key');
+    await upsert(
+      'settings',
+      {
+        key: k,
+        value: String(obj[k] ?? ''),
+      },
+      'key'
+    );
   }
+
   return true;
 }
 
 export function parseJSON(str, fallback) {
-  try { return JSON.parse(str); } catch { return fallback; }
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
+  }
 }
 
 export function workingHours(s) {
   const wh = parseJSON(s.workingHours, []);
-  if (!Array.isArray(wh) || wh.length !== 7) return parseJSON(defaultSettings.workingHours, []);
+
+  if (!Array.isArray(wh) || wh.length !== 7) {
+    return parseJSON(defaultSettings.workingHours, []);
+  }
+
   return wh;
 }
 

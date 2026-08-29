@@ -18,6 +18,8 @@ const FIELDS = {
 
 const NUM = new Set(['price', 'durationMin', 'sort', 'rating', 'experience', 'stock', 'compareAtPrice', 'value', 'minTotal']);
 const BOOL = new Set(['active', 'featured', 'approved', 'read']);
+// حقول مرتبطة بجداول أخرى: القيمة الفارغة تصبح null حتى لا يرفضها القيد المرجعي
+const FK = new Set(['barberId', 'serviceId', 'productId', 'orderId']);
 
 // خريطة النماذج إلى جداول Supabase
 const MAP = {
@@ -34,6 +36,34 @@ const MAP = {
   timeoff: 'time_off',
 };
 
+// نماذج لها حقل رابط (slug) فريد
+const SLUG_MODELS = new Set(['services', 'barbers', 'products']);
+
+const rand4 = () => Math.random().toString(36).slice(2, 6);
+
+/** توليد رابط لاتيني مقروء من الاسم */
+function slugify(s) {
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
+/** يضمن وجود slug/code حتى لا تفشل الإضافة بسبب قيد الفريدية */
+function ensureUniqueFields(modelKey, data) {
+  if (SLUG_MODELS.has(modelKey) && !String(data.slug || '').trim()) {
+    data.slug = slugify(data.nameEn) || slugify(data.nameAr) || `item-${rand4()}`;
+  }
+  if (modelKey === 'coupons' && !String(data.code || '').trim()) {
+    data.code = `SAVE-${rand4().toUpperCase()}`;
+  }
+  return data;
+}
+
 function clean(model, data) {
   const allowed = FIELDS[model] || [];
   const out = {};
@@ -43,6 +73,8 @@ function clean(model, data) {
     else if (NUM.has(k)) out[k] = Number(data[k]) || 0;
     else out[k] = data[k] === null ? '' : String(data[k]);
   }
+  // مفاتيح مرتبطة فارغة → null
+  for (const k of FK) if (out[k] === '') out[k] = null;
   return out;
 }
 
@@ -68,9 +100,21 @@ export async function POST(req, { params }) {
 
   try {
     if (action === 'create') {
-      const data = clean(modelKey, body.data || {});
+      const data = ensureUniqueFields(modelKey, clean(modelKey, body.data || {}));
       if (modelKey === 'coupons' && data.code) data.code = String(data.code).toUpperCase();
-      const row = await insert(table, data);
+      let row;
+      try {
+        row = await insert(table, data);
+      } catch (e) {
+        // لو الرابط/الكود مكرر نضيف لاحقة عشوائية ونعيد المحاولة مرة واحدة
+        if (/مستخدم مسبقاً|duplicate|unique/i.test(e.message) && (data.slug !== undefined || data.code !== undefined)) {
+          if (data.slug !== undefined) data.slug = `${slugify(data.slug) || 'item'}-${rand4()}`;
+          if (data.code !== undefined) data.code = `${String(data.code).split('-')[0]}-${rand4().toUpperCase()}`;
+          row = await insert(table, data);
+        } else {
+          throw e;
+        }
+      }
       if (modelKey === 'barbers' && Array.isArray(body.serviceIds)) {
         await syncBarberServices(row.id, body.serviceIds);
       }

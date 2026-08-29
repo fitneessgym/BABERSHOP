@@ -37,6 +37,35 @@ export function supabase() {
    أدوات بناء الاستعلام (تحويل صيغة شبيهة بـ Prisma إلى PostgREST)
    ============================================================ */
 
+/** يترجم أخطاء Postgres/Supabase إلى رسائل عربية واضحة */
+function dbError(table, err) {
+  const code = err?.code || '';
+  let msg = err?.message || String(err || 'خطأ غير معروف');
+  // PostgREST يضع التفاصيل أحياناً في msg
+  if (typeof msg === 'string' && msg.startsWith('{"code"')) {
+    try { msg = JSON.parse(msg).message || msg; } catch {}
+  }
+  const constraint = (msg.match(/"([\w.]+_key|[\w.]+_idx)"/) || [])[1] || '';
+
+  if (code === '23505' || /duplicate key|unique constraint/i.test(msg)) {
+    const field = constraint.includes('slug') ? 'الرابط (Slug)' : constraint.includes('code') ? 'الكود' : constraint.includes('email') ? 'البريد' : 'القيمة';
+    return new Error(`${field} مستخدم مسبقاً — غيّره وأعد المحاولة`);
+  }
+  if (code === '23502' || /null value|not-null constraint/i.test(msg)) {
+    return new Error('هناك حقل إجباري فارغ — املأ كل الحقول المطلوبة');
+  }
+  if (code === '23503' || /foreign key/i.test(msg)) {
+    return new Error('قيمة مرتبطة غير صحيحة (مثل الحلاق أو الخدمة) — أعد اختيارها');
+  }
+  if (code === '42501' || /row-level security|rls/i.test(msg)) {
+    return new Error('صلاحيات Supabase (RLS) تمنع الكتابة — تأكد من استخدام SUPABASE_SERVICE_ROLE_KEY وليس المفتاح العام');
+  }
+  if (code === '42P01' || /does not exist|schema cache/i.test(msg)) {
+    return new Error(`الجدول "${table}" غير موجود — نفّذ ملف supabase/schema.sql من SQL Editor في Supabase`);
+  }
+  return new Error(`[${table}] ${msg}`);
+}
+
 const clean = (v) => String(v).replace(/["\\]/g, '');
 
 /** يبني نص شرط OR بلغة PostgREST */
@@ -111,7 +140,7 @@ export async function list(table, { where, order, limit, select = '*' } = {}) {
   q = applyOrder(q, order);
   if (limit) q = q.limit(limit);
   const { data, error } = await q;
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
   return data || [];
 }
 
@@ -121,7 +150,7 @@ export async function one(table, { where, select = '*', order } = {}) {
   q = applyWhere(q, where);
   q = applyOrder(q, order);
   const { data, error } = await q.limit(1);
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
   return data?.[0] ?? null;
 }
 
@@ -130,14 +159,14 @@ export async function count(table, { where } = {}) {
   let q = supabase().from(table).select('*', { count: 'exact', head: true });
   q = applyWhere(q, where);
   const { count: c, error } = await q;
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
   return c || 0;
 }
 
 /** إدراج صف أو مصفوفة صفوف وإرجاعه */
 export async function insert(table, data) {
   const { data: rows, error } = await supabase().from(table).insert(data).select();
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
   return Array.isArray(data) ? rows : (rows?.[0] ?? null);
 }
 
@@ -148,7 +177,7 @@ export async function update(table, id, data) {
     .update(data)
     .eq('id', id)
     .select();
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
   return rows?.[0] ?? null;
 }
 
@@ -157,13 +186,13 @@ export async function updateWhere(table, where, data) {
   let q = supabase().from(table).update(data);
   q = applyWhere(q, where);
   const { error } = await q;
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
 }
 
 /** حذف صف بالمعرّف */
 export async function remove(table, id) {
   const { error } = await supabase().from(table).delete().eq('id', id);
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
 }
 
 /** حذف كل الصفوف المطابقة للشرط (شرط فارغ = حذف الكل) */
@@ -171,7 +200,7 @@ export async function removeWhere(table, where = {}) {
   let q = supabase().from(table).delete();
   q = applyWhere(q, where);
   const { error } = await q;
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
 }
 
 /** إدراج أو تحديث: upsert('settings', { key, value }, 'key') */
@@ -179,6 +208,6 @@ export async function upsert(table, data, onConflict) {
   const { error } = await supabase()
     .from(table)
     .upsert(data, onConflict ? { onConflict } : undefined);
-  if (error) throw new Error(`[${table}] ${error.message}`);
+  if (error) throw dbError(table, error);
   return true;
 }

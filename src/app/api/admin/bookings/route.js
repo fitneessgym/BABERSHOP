@@ -49,6 +49,8 @@ export async function POST(req) {
       const data = {};
       const allowed = ['status', 'date', 'time', 'barberId', 'serviceId', 'notes', 'customerName', 'phone', 'price'];
       for (const k of allowed) if (body.data?.[k] !== undefined) data[k] = body.data[k];
+      // مفاتيح مرتبطة فارغة → null حتى لا يرفضها القيد المرجعي
+      for (const k of ['barberId', 'serviceId']) if (data[k] === '') data[k] = null;
       const row = await update('bookings', id, data);
       try {
         if (body.data?.status === 'cancelled') await notifyBooking(row, 'booking_cancel', 'ar');
